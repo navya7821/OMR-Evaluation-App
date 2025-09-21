@@ -57,11 +57,11 @@ Streamlit frontend provides interactive evaluation.
 ## Project Structure
 
 OMR-Evaluation-App
-│
-├── omr_pipeline.py  # Core OMR evaluation functions
-├── app.py  # Streamlit frontend
-├── answer_key.txt  # Sample answer key
-├── README.md  # Project description and workflow
-├── processed_omr.jpg  # Annotated OMR sheet output
-└── omr_results.csv  # CSV file with evaluation results
+
+ omr_pipeline.py  # Core OMR evaluation functions
+ app.py  # Streamlit frontend
+ answer_key.txt  # Sample answer key
+ README.md  # Project description and workflow
+ processed_omr.jpg  # Annotated OMR sheet output
+ omr_results.csv  # CSV file with evaluation results
 
