@@ -7,7 +7,6 @@ import csv
 # =========================
 # 🎨 THEME COLORS 
 # =========================
-
 PAGE_BG = "#93EB87C7"    
 TITLE_COLOR = "#663399"    
 BUTTON_COLOR = "#338B00DF"   
@@ -64,15 +63,21 @@ uploaded_key = st.file_uploader("📝 Upload Answer Key (TXT)", type=["txt"])
 # 🚀 Processing Pipeline
 # =========================
 if st.button("Run OMR Evaluation") and uploaded_omr and uploaded_key:
-    with open("temp_omr.jpg", "wb") as f:
-        f.write(uploaded_omr.getbuffer())
+    # Save uploaded answer key
     with open("answer_key.txt", "wb") as f:
         f.write(uploaded_key.getbuffer())
 
     with open("answer_key.txt", "r") as f:
         answer_key = [line.strip().upper() for line in f if line.strip()]
 
-    image = cv2.imread("temp_omr.jpg")
+    # Read OMR image from upload
+    file_bytes = np.asarray(bytearray(uploaded_omr.read()), dtype=np.uint8)
+    image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+    # Store original image bytes in session state
+    st.session_state["original_image_bytes"] = cv2.imencode(".jpg", image)[1].tobytes()
+
+    # Preprocess
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
@@ -140,12 +145,12 @@ if st.button("Run OMR Evaluation") and uploaded_omr and uploaded_key:
         for i, (student_ans, correct_ans, res) in enumerate(zip(selected_answers, answer_key, results)):
             writer.writerow([f"Q{i+1}", student_ans, correct_ans, res])
 
+    # Store processed image bytes in session state
+    st.session_state["processed_image_bytes"] = cv2.imencode(".jpg", output_grouped)[1].tobytes()
+
     st.session_state["score"] = score
     st.session_state["answer_len"] = len(answer_key)
     st.session_state["results_path"] = results_path
-    st.session_state["original_image"] = "temp_omr.jpg"
-    st.session_state["processed_image"] = "processed_omr.jpg"
-    cv2.imwrite("processed_omr.jpg", output_grouped)
 
 # =========================
 # 🎯 Show Results
@@ -175,11 +180,11 @@ if "score" in st.session_state:
     if st.button("📷 Show Original & Processed Images"):
         col1, col2 = st.columns(2)
         with col1:
-            st.image(st.session_state["original_image"], caption="Original OMR", use_container_width=True)
+            st.image(st.session_state["original_image_bytes"], caption="Original OMR", use_container_width=True)
         with col2:
-            st.image(st.session_state["processed_image"], caption="Processed OMR", use_container_width=True)
+            st.image(st.session_state["processed_image_bytes"], caption="Processed OMR", use_container_width=True)
 
-    # ✅ FIXED highlight function
+    # ✅ Highlight results table
     def highlight_result(row):
         style = 'background-color: green; color: white; font-weight: bold;' if row["Result"] == "Correct" else 'background-color: red; color: white; font-weight: bold;'
         return [style] * len(row)
@@ -189,3 +194,5 @@ if "score" in st.session_state:
         st.dataframe(df.style.apply(highlight_result, axis=1))
         with open(st.session_state["results_path"], "rb") as f:
             st.download_button("⬇️ Download Results CSV", f, file_name="omr_results.csv", mime="text/csv")
+
+
