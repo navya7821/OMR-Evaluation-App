@@ -5,15 +5,15 @@ import pandas as pd
 import csv
 
 # =========================
-# 🎨 THEME COLORS 
+# 🎨 THEME COLORS
 # =========================
-PAGE_BG = "#93EB87C7"    
-TITLE_COLOR = "#663399"    
-BUTTON_COLOR = "#338B00DF"   
-BUTTON_HOVER = "#000000"   
-SCORE_BG = "#FFFFFF6C"    
-SCORE_BORDER = "#00008B"   
-SCORE_TEXT = "#663399"  
+PAGE_BG = "#93EB87C7"
+TITLE_COLOR = "#663399"
+BUTTON_COLOR = "#338B00DF"
+BUTTON_HOVER = "#000000"
+SCORE_BG = "#FFFFFF6C"
+SCORE_BORDER = "#00008B"
+SCORE_TEXT = "#663399"
 
 st.set_page_config(page_title="OMR Evaluation App", layout="centered")
 
@@ -54,7 +54,7 @@ st.markdown(
 # =========================
 # 📝 Page Layout
 # =========================
-st.title("📄 OMR Evaluator")
+st.title("OMR Evaluator")
 
 uploaded_omr = st.file_uploader("📷 Upload OMR Sheet Image", type=["jpg", "png", "jpeg"])
 uploaded_key = st.file_uploader("📝 Upload Answer Key (TXT)", type=["txt"])
@@ -63,19 +63,16 @@ uploaded_key = st.file_uploader("📝 Upload Answer Key (TXT)", type=["txt"])
 # 🚀 Processing Pipeline
 # =========================
 if st.button("Run OMR Evaluation") and uploaded_omr and uploaded_key:
-    # Save uploaded image locally
-    with open("temp_omr.jpg", "wb") as f:
-        f.write(uploaded_omr.getbuffer())
+    # ✅ Read uploaded files into memory
+    original_bytes = uploaded_omr.getvalue()
+    key_bytes = uploaded_key.getvalue()
 
-    # Save key
-    with open("answer_key.txt", "wb") as f:
-        f.write(uploaded_key.getbuffer())
+    # Convert answer key
+    answer_key = [line.strip().upper() for line in key_bytes.decode().splitlines() if line.strip()]
 
-    with open("answer_key.txt", "r") as f:
-        answer_key = [line.strip().upper() for line in f if line.strip()]
-
-    # Load image
-    image = cv2.imread("temp_omr.jpg")
+    # Decode image for OpenCV
+    np_arr = np.frombuffer(original_bytes, np.uint8)
+    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
@@ -88,8 +85,8 @@ if st.button("Run OMR Evaluation") and uploaded_omr and uploaded_key:
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
 
+    # Find bubbles
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
     valid_bubbles = []
     for c in contours:
         (x, y, w, h) = cv2.boundingRect(c)
@@ -127,6 +124,7 @@ if st.button("Run OMR Evaluation") and uploaded_omr and uploaded_key:
         selected_option = chr(65 + filled_index)
         selected_answers.append(selected_option)
 
+    # Compare answers
     score = 0
     results = []
     for student_ans, correct_ans in zip(selected_answers, answer_key):
@@ -136,25 +134,23 @@ if st.button("Run OMR Evaluation") and uploaded_omr and uploaded_key:
         else:
             results.append("Wrong")
 
-    results_path = "omr_results.csv"
-    with open(results_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Question", "Student Answer", "Correct Answer", "Result"])
-        for i, (student_ans, correct_ans, res) in enumerate(zip(selected_answers, answer_key, results)):
-            writer.writerow([f"Q{i+1}", student_ans, correct_ans, res])
+    # Save results in-memory CSV
+    import io
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerow(["Question", "Student Answer", "Correct Answer", "Result"])
+    for i, (student_ans, correct_ans, res) in enumerate(zip(selected_answers, answer_key, results)):
+        writer.writerow([f"Q{i+1}", student_ans, correct_ans, res])
 
-    # ✅ Store results in session state
+    # Save processed image in memory
+    _, processed_bytes = cv2.imencode(".png", output_grouped)
+
+    # Store in session state
     st.session_state["score"] = score
     st.session_state["answer_len"] = len(answer_key)
-    st.session_state["results_path"] = results_path
-
-    # Save processed image
-    cv2.imwrite("processed_omr.jpg", output_grouped)
-
-    # ✅ Store images as bytes instead of paths
-    st.session_state["original_image_bytes"] = uploaded_omr.getvalue()
-    with open("processed_omr.jpg", "rb") as f:
-        st.session_state["processed_image_bytes"] = f.read()
+    st.session_state["original_image_bytes"] = original_bytes
+    st.session_state["processed_image_bytes"] = processed_bytes.tobytes()
+    st.session_state["csv_data"] = csv_buffer.getvalue()
 
 # =========================
 # 🎯 Show Results
@@ -188,15 +184,13 @@ if "score" in st.session_state:
         with col2:
             st.image(st.session_state["processed_image_bytes"], caption="Processed OMR", use_container_width=True)
 
+    # ✅ Highlight results table
     def highlight_result(row):
         style = 'background-color: green; color: white; font-weight: bold;' if row["Result"] == "Correct" else 'background-color: red; color: white; font-weight: bold;'
         return [style] * len(row)
 
     if st.button("📑 Show Results Table"):
-        df = pd.read_csv(st.session_state["results_path"])
+        from io import StringIO
+        df = pd.read_csv(StringIO(st.session_state["csv_data"]))
         st.dataframe(df.style.apply(highlight_result, axis=1))
-        with open(st.session_state["results_path"], "rb") as f:
-            st.download_button("⬇️ Download Results CSV", f, file_name="omr_results.csv", mime="text/csv")
-
-
-
+        st.download_button("⬇️ Download Results CSV", st.session_state["csv_data"], file_name="omr_results.csv", mime="text/csv")
