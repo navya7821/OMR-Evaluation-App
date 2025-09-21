@@ -4,7 +4,7 @@ Automated system for evaluating multiple-choice answer sheets. Detects filled bu
 compares with answer key, calculates score, generates CSV, and produces annotated images. 
 Streamlit frontend provides interactive evaluation.
 
----
+
 
 ## Project Overview
 
@@ -15,7 +15,7 @@ Streamlit frontend provides interactive evaluation.
 - Export detailed CSV results  
 - Interactive evaluation via Streamlit  
 
----
+
 
 ## Workflow of the Code
 
@@ -28,7 +28,7 @@ Streamlit frontend provides interactive evaluation.
 7. Generate CSV with question, student answer, correct answer, and result  
 8. Annotate image with question numbers and selected options  
 
----
+
 
 ## Streamlit Interface Features
 
@@ -39,7 +39,6 @@ Streamlit frontend provides interactive evaluation.
 - Display question-wise results table (green = correct, red = wrong)  
 - Download results CSV  
 
----
 
 ## Features Summary
 
@@ -52,16 +51,5 @@ Streamlit frontend provides interactive evaluation.
 - Handles variations in bubble size, layout, and lighting  
 - Modular backend pipeline for integration or batch processing  
 
----
 
-## Project Structure
-
-OMR-Evaluation-App
-
- omr_pipeline.py  # Core OMR evaluation functions
- app.py  # Streamlit frontend
- answer_key.txt  # Sample answer key
- README.md  # Project description and workflow
- processed_omr.jpg  # Annotated OMR sheet output
- omr_results.csv  # CSV file with evaluation results
 
